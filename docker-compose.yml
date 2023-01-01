@@ -1,0 +1,145 @@
+version: '3.7'
+services:
+  mongo_db:
+    image: mongo:latest
+    container_name: mongo_db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin
+    ports:
+      - 27017:27017
+    volumes:
+      - "./mongodb/db:/data/db"
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    environment:
+            ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+            ME_CONFIG_MONGODB_ADMINPASSWORD: admin
+            ME_CONFIG_MONGODB_SERVER: mongo_db
+    ports:
+      - "18081:8081"                
+
+  mysql_db:
+    image: mysql:5.7
+    container_name: mysql_db
+    restart: always
+    environment:
+    # CREATE USER 'admin'@'%' IDENTIFIED BY 'admin';
+    # GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+        - MYSQL_ROOT_PASSWORD='admin'
+        - MYSQL_USER='admin'
+        - MYSQL_PASSWORD='admin'
+    ports:
+        - "3306:3306"
+    volumes:
+        - "./mysql/my.cnf:/etc/mysql/my.cnf"
+        - "./mysql/datadir:/var/lib/mysql"  
+  
+  postgres_db:
+    image: postgres:14.1-alpine
+    container_name: postgres_db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - "./postgres/db:/var/lib/postgresql/datal"   
+
+  batfish_server:
+    image: batfish/allinone
+    container_name: batfish_server
+    restart: always
+    ports:
+      - "8888:8888"
+      - "9997:9997"
+      - "9996:9996"
+    volumes:
+      - "./batfish/data:/data"
+  
+  batfish_dashboard:
+    build: ./batfish/batfish_dashboard
+    container_name: batfish_dashboard
+    restart: always
+    ports:
+      - "8050:8050"  
+
+  gitlab:
+  # username is 'root' and password is 'Welcome@4321'
+    image: gitlab/gitlab-ce:latest
+    container_name: gitlab
+    restart: always
+    ports:
+      - "8880:80"
+      - "8822:22"
+      - "8443:443"
+    volumes:
+      - "./gitlab/config:/etc/gitlab"
+      - "./gitlab/logs:/var/log/gitlab"
+      - "./gitlab/data:/var/opt/gitlab"
+
+  gitlab-runner:
+  # docker-compose exec gitlab-runner gitlab-runner register
+    image: gitlab/gitlab-runner:alpine
+    container_name: gitlab-runner
+    restart: unless-stopped
+    depends_on:
+      - gitlab
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+      - './gitlab/runner/config:/etc/gitlab-runner'
+  
+  jupyter:
+  # docker-compose exec gitlab-runner gitlab-runner register
+    image: jupyter/minimal-notebook:latest
+    container_name: jupyter
+    restart: unless-stopped
+    ports:
+      - '9888:8888'
+    volumes:
+      - './jupyter/work:/home/jovyan/work'
+
+  syslog:
+    image: pbertera/syslogserver
+    container_name: syslog-server
+    restart: unless-stopped
+    environment:
+      - SYSLOG_USERNAME=admin
+      - SYSLOG_PASSWORD=admin
+    ports:
+      - "18080:80"
+      - "514:514/udp"
+
+  ftpd:
+   image: bogem/ftp
+   container_name: ftpd
+   restart: always
+   environment:
+     - FTP_USER=admin
+     - FTP_PASS=admin
+     - PASV_ADDRESS=192.168.158.111
+   volumes:
+     - "./ftpd/data:/home/vsftpd/"
+   ports:
+     - "20-21:20-21"
+     - "47400-47470:47400-47470"
+                
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    links:
+      - mysql_db
+    environment:
+      PMA_HOST: mysql_db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    restart: always
+    ports:
+      - 8081:80
+
+volumes:
+  dbdata:
+
+
